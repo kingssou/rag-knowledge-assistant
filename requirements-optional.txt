@@ -1,0 +1,3 @@
+# 可选依赖：切换到真实模型时按需安装
+sentence-transformers>=3.0.0   # EMBED_MODEL=sentence-transformers
+openai>=1.0.0                  # LLM_MODE=openai / ollama / EMBED_MODEL=openai

@@ -1,0 +1,23 @@
+services:
+  rag-api:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      LLM_MODE: mock
+      EMBED_MODEL: hash
+    volumes:
+      - ../data:/app/data
+      - ../evaluation:/app/evaluation
+
+  # 可选：切换到本地模型时启用，并把 LLM_MODE 改为 ollama
+  # ollama:
+  #   image: ollama/ollama:latest
+  #   ports:
+  #     - "11434:11434"
+  #   volumes:
+  #     - ollama_data:/root/.ollama
+  # volumes:
+  #   ollama_data:
