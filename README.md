@@ -37,9 +37,7 @@ python main.py eval                  # 跑评估集
 python main.py serve                 # 启动服务
 ```
 
-服务启动后，浏览器打开 `http://127.0.0.1:8000/` 使用 Web 问答界面；`http://127.0.0.1:8000/docs` 查看 API 文档。
-
-服务启动后：
+服务启动后，浏览器打开 `http://127.0.0.1:8000/` 使用 Web 问答界面；`http://127.0.0.1:8000/docs` 查看 API 文档。也可以用 curl 直接调接口：
 
 ```bash
 curl -X POST http://127.0.0.1:8000/ask -H "Content-Type: application/json" -d "{\"question\":\"一线城市住宿费上限是多少？\"}"
