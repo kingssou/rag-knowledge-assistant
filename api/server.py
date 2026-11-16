@@ -4,15 +4,23 @@ from __future__ import annotations
 from pathlib import Path
 
 from fastapi import FastAPI
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from config import settings
+from config import ROOT, settings
 from evaluation.runner import run as run_eval
 from generation.answer import AnswerEngine
 from ingest.pipeline import IngestPipeline
 
 app = FastAPI(title="企业知识库 RAG 助手", version="1.0.0")
 _engine = AnswerEngine()
+app.mount("/static", StaticFiles(directory=str(ROOT / "api" / "static")), name="static")
+
+
+@app.get("/", include_in_schema=False)
+def index():
+    return FileResponse(str(ROOT / "api" / "static" / "index.html"))
 
 
 class AskRequest(BaseModel):

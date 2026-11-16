@@ -9,7 +9,23 @@
 - **引用溯源与拒答**：每个事实性句子带来源编号，置信度不足时拒答，保留人工确认边界；
 - **完整评估体系**：内置 10 条评估集与 6 项指标，一条命令输出结构化报告；
 - **可替换适配器**：Embedding 与 LLM 均可通过环境变量切换到真实模型或本地 Ollama；
-- **可部署**：FastAPI 服务 + Docker Compose。
+- **可部署**：FastAPI 服务 + Docker Compose，附带可直接使用的 Web 聊天界面。
+
+## 效果演示
+
+服务自带 Web 聊天界面，启动后访问 `http://127.0.0.1:8000/` 即可使用。以下截图为实际运行效果（demo 模式，无 API Key）。
+
+**问答首页** — 内置四个示例问题，覆盖精确数字题与越界题：
+
+![问答首页](docs/screenshots/chat-home.png)
+
+**带引用的回答** — 每个事实性结论标注来源文件与相关度分数，答案只依据知识库文档生成：
+
+![带引用的回答](docs/screenshots/chat-answer.png)
+
+**拒答边界** — 知识库中没有相关信息时明确拒答，不编造内容：
+
+![拒答示例](docs/screenshots/chat-refuse.png)
 
 ## 快速开始
 
@@ -18,8 +34,10 @@ pip install -r requirements.txt
 python main.py init --reset          # 建索引（示例文档）
 python main.py ask "连续远程办公超过几天需要申请？"
 python main.py eval                  # 跑评估集
-python main.py serve                 # 启动 API
+python main.py serve                 # 启动服务
 ```
+
+服务启动后，浏览器打开 `http://127.0.0.1:8000/` 使用 Web 问答界面；`http://127.0.0.1:8000/docs` 查看 API 文档。
 
 服务启动后：
 
@@ -57,12 +75,14 @@ ingest/       文档解析、清洗、分块、入库
 retrieval/    Embedding、BM25、混合召回、重排序
 generation/   Prompt、LLM 适配、带引用生成、拒答
 evaluation/   评估集、指标、批量评估
-api/          FastAPI 服务
+api/          FastAPI 服务与 Web 聊天界面（api/static）
 deploy/       Dockerfile 与 docker-compose
-docs/         架构、评估、面试问答
+docs/         架构、评估、面试问答、效果截图
 data/         示例文档与索引
 tests/        核心逻辑单测
 ```
+
+Web 界面支持 URL 参数 `?demo=0~3` 自动发起对应示例问题，方便快速演示或复现截图。
 
 ## 测试
 

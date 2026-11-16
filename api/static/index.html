@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>企业知识库问答助手</title>
+<style>
+  :root {
+    --bg: #f5f7fa;
+    --panel: #ffffff;
+    --border: #e4e8ef;
+    --text: #1f2733;
+    --muted: #7a8798;
+    --brand: #2f6fed;
+    --brand-soft: #eaf1ff;
+    --user-bubble: #2f6fed;
+    --bot-bubble: #ffffff;
+    --cite-bg: #f0f4fb;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    height: 100vh; display: flex; flex-direction: column;
+  }
+  header {
+    height: 64px; background: var(--panel); border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; padding: 0 28px; gap: 12px; flex-shrink: 0;
+  }
+  .logo {
+    width: 34px; height: 34px; border-radius: 9px; background: var(--brand);
+    display: flex; align-items: center; justify-content: center; color: #fff; font-size: 18px;
+  }
+  .title { font-size: 17px; font-weight: 600; }
+  .subtitle { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .status {
+    margin-left: auto; font-size: 12px; color: #1a9d63;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: #1a9d63; }
+  main {
+    flex: 1; overflow-y: auto; padding: 28px 20px 10px;
+    display: flex; flex-direction: column; gap: 20px;
+  }
+  .wrap { width: 100%; max-width: 820px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+  .msg { display: flex; gap: 12px; align-items: flex-start; }
+  .msg.user { flex-direction: row-reverse; }
+  .avatar {
+    width: 34px; height: 34px; border-radius: 9px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 600;
+  }
+  .avatar.bot { background: var(--brand-soft); color: var(--brand); }
+  .avatar.me { background: #dfe5ee; color: #5b6878; }
+  .bubble {
+    max-width: 76%; padding: 12px 16px; border-radius: 12px; line-height: 1.7;
+    font-size: 14px; white-space: pre-wrap; word-break: break-word;
+  }
+  .msg.user .bubble { background: var(--user-bubble); color: #fff; border-top-right-radius: 3px; }
+  .msg.bot .bubble { background: var(--bot-bubble); border: 1px solid var(--border); border-top-left-radius: 3px; }
+  .meta { font-size: 12px; color: var(--muted); margin-top: 8px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .confidence {
+    background: var(--cite-bg); color: #4a5a72; padding: 2px 8px; border-radius: 5px;
+  }
+  .cite {
+    background: var(--cite-bg); color: #4a5a72; padding: 5px 9px; border-radius: 6px;
+    margin-top: 6px; font-size: 12px; line-height: 1.6;
+  }
+  .welcome { text-align: center; color: var(--muted); margin-top: 12vh; }
+  .welcome h1 { color: var(--text); font-size: 24px; font-weight: 600; margin-bottom: 10px; }
+  .welcome p { font-size: 14px; }
+  .samples { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 26px; }
+  .sample {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 9px;
+    padding: 10px 14px; font-size: 13px; cursor: pointer; color: #46546a; transition: .15s;
+  }
+  .sample:hover { border-color: var(--brand); color: var(--brand); background: var(--brand-soft); }
+  footer {
+    background: var(--panel); border-top: 1px solid var(--border); padding: 16px 20px 20px; flex-shrink: 0;
+  }
+  .inputbar { width: 100%; max-width: 820px; margin: 0 auto; display: flex; gap: 10px; }
+  input {
+    flex: 1; height: 46px; border: 1px solid var(--border); border-radius: 10px;
+    padding: 0 16px; font-size: 14px; outline: none; font-family: inherit; background: #fff; color: var(--text);
+  }
+  input:focus { border-color: var(--brand); box-shadow: 0 0 0 3px rgba(47,111,237,.1); }
+  button {
+    height: 46px; padding: 0 24px; border: none; border-radius: 10px;
+    background: var(--brand); color: #fff; font-size: 14px; font-weight: 500; cursor: pointer;
+  }
+  button:disabled { background: #a9c0f0; cursor: not-allowed; }
+  .hint { text-align: center; font-size: 11px; color: var(--muted); margin-top: 10px; }
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">知</div>
+  <div>
+    <div class="title">企业知识库问答助手</div>
+    <div class="subtitle">基于 RAG 的文档智能检索 · 带引用溯源与拒答</div>
+  </div>
+  <div class="status"><span class="dot"></span>服务在线</div>
+</header>
+
+<main id="main">
+  <div class="wrap" id="chat">
+    <div class="welcome">
+      <h1>有什么可以帮您？</h1>
+      <p>基于企业文档回答问题，每个结论都标注来源依据</p>
+      <div class="samples" id="samples"></div>
+    </div>
+  </div>
+</main>
+
+<footer>
+  <div class="inputbar">
+    <input id="q" placeholder="请输入您的问题，例如：连续远程办公超过几天需要申请？" autocomplete="off">
+    <button id="send">发送</button>
+  </div>
+  <div class="hint">回答仅依据知识库文档生成 · 置信度不足时自动拒答 · 请以原文为准</div>
+</footer>
+
+<script>
+const samples = [
+  "连续远程办公超过几天需要提前申请？",
+  "一线城市的住宿费报销上限是多少？",
+  "设备遗失后应当在多少小时内报告？",
+  "世界杯决赛在哪个城市举办？"
+];
+const sampleBox = document.getElementById('samples');
+samples.forEach(s => {
+  const el = document.createElement('div');
+  el.className = 'sample'; el.textContent = s;
+  el.onclick = () => { document.getElementById('q').value = s; ask(); };
+  sampleBox.appendChild(el);
+});
+
+const chat = document.getElementById('chat');
+const main = document.getElementById('main');
+const input = document.getElementById('q');
+const btn = document.getElementById('send');
+
+function addBubble(role, text) {
+  const welcome = chat.querySelector('.welcome');
+  if (welcome) welcome.remove();
+  const msg = document.createElement('div');
+  msg.className = 'msg ' + role;
+  const av = document.createElement('div');
+  av.className = 'avatar ' + (role === 'user' ? 'me' : 'bot');
+  av.textContent = role === 'user' ? '我' : '知';
+  const bubble = document.createElement('div');
+  bubble.className = 'bubble'; bubble.textContent = text;
+  msg.appendChild(av); msg.appendChild(bubble);
+  chat.appendChild(msg);
+  main.scrollTop = main.scrollHeight;
+  return msg;
+}
+
+async function ask() {
+  const q = input.value.trim();
+  if (!q) return;
+  input.value = ''; btn.disabled = true;
+  addBubble('user', q);
+  const thinking = addBubble('bot', '正在检索知识库…');
+  try {
+    const res = await fetch('/ask', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({question: q})
+    });
+    const data = await res.json();
+    thinking.remove();
+    const msg = addBubble('bot', data.answer);
+    const bubble = msg.querySelector('.bubble');
+    const meta = document.createElement('div');
+    meta.className = 'meta';
+    const conf = document.createElement('span');
+    conf.className = 'confidence';
+    conf.textContent = '置信度 ' + data.confidence + (data.refused ? ' · 已拒答' : '');
+    meta.appendChild(conf);
+    bubble.appendChild(meta);
+    (data.citations || []).forEach(c => {
+      const cite = document.createElement('div');
+      cite.className = 'cite';
+      cite.textContent = '[' + c.index + '] 来源：' + c.source + '（相关度 ' + c.score + '）';
+      bubble.appendChild(cite);
+    });
+  } catch (e) {
+    thinking.remove();
+    addBubble('bot', '请求失败：' + e.message);
+  } finally {
+    btn.disabled = false; input.focus();
+  }
+}
+btn.onclick = ask;
+input.onkeydown = e => { if (e.key === 'Enter') ask(); };
+
+// 演示模式：?demo=0~3 自动发起对应示例问题，便于生成展示截图
+const demoIdx = new URLSearchParams(location.search).get('demo');
+if (demoIdx !== null && samples[Number(demoIdx)]) {
+  input.value = samples[Number(demoIdx)];
+  setTimeout(ask, 300);
+}
+</script>
+</body>
+</html>
