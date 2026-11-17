@@ -4,7 +4,8 @@ from __future__ import annotations
 import unittest
 
 from evaluation import metrics
-from generation.llm import MockLLM
+from generation.context import Conversation, estimate_tokens, fit_context
+from generation.llm import MockLLM, _safe_json
 from ingest.chunker import chunk_document
 from ingest.loader import Document
 from retrieval.embedder import HashEmbedder
@@ -48,6 +49,46 @@ class TestMockLLM(unittest.TestCase):
         ]
         out = MockLLM().chat(messages)
         self.assertIn("[1]", out)
+
+    def test_mock_stream_yields_chunks(self):
+        messages = [
+            {"role": "system", "content": "规则"},
+            {"role": "user", "content": (
+                "【参考资料】\n[1] 来源：制度.md\n远程办公超过三天需要提前申请。\n\n"
+                "【问题】\n远程办公超过几天要申请？\n\n请按系统规则回答。"
+            )},
+        ]
+        parts = list(MockLLM().stream(messages))
+        self.assertGreater(len(parts), 0)
+        self.assertEqual("".join(parts).replace(" ", ""),
+                         MockLLM().chat(messages).replace(" ", ""))
+
+
+class TestStructuredOutput(unittest.TestCase):
+    def test_safe_json_parses_fenced_and_plain(self):
+        self.assertEqual(_safe_json('```json\n{"answer": "ok"}\n```'), {"answer": "ok"})
+        self.assertEqual(_safe_json('前缀 {"answer": 1} 后缀'), {"answer": 1})
+        self.assertEqual(_safe_json('不是 json'), {})
+
+
+class TestContextEngineering(unittest.TestCase):
+    def test_fit_context_respects_budget(self):
+        class Hit:
+            def __init__(self, text):
+                self.text = text
+        hits = [Hit("长文本" * 20), Hit("短")]
+        kept, used = fit_context(hits, budget=30)
+        self.assertLessEqual(used, 30)
+        self.assertTrue(all(h in kept for h in hits if estimate_tokens(h.text) + 8 <= 30))
+
+    def test_conversation_keeps_last_n_turns(self):
+        conv = Conversation(max_turns=2)
+        for i in range(5):
+            conv.add(f"问题{i}", f"回答{i}")
+        self.assertEqual(len(conv.turns), 2)
+        msgs = conv.to_messages()
+        self.assertEqual(msgs[0]["content"], "问题3")
+        self.assertEqual(msgs[-1]["content"], "回答4")
 
 
 if __name__ == "__main__":

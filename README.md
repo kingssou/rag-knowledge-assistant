@@ -4,12 +4,14 @@
 
 ## 亮点
 
-- **手写全链路**，不依赖低代码平台，体现 AI 应用工程的编码能力；
+- **大模型工程化**：统一的 LLM 适配器（OpenAI 兼容协议），可接 OpenAI / DeepSeek / 通义 / 智谱 / 本地 Ollama，切换模型不改业务代码；
+- **大模型核心技术**：流式输出（streaming）、结构化 JSON 输出（structured output）、上下文预算与 token 管理、多轮对话、Prompt 工程与幻觉抑制；
 - **混合检索**：Chroma 向量召回 + BM25 关键词召回，归一化加权后重排序；
 - **引用溯源与拒答**：每个事实性句子带来源编号，置信度不足时拒答，保留人工确认边界；
 - **完整评估体系**：内置 10 条评估集与 6 项指标，一条命令输出结构化报告；
-- **可替换适配器**：Embedding 与 LLM 均可通过环境变量切换到真实模型或本地 Ollama；
 - **可部署**：FastAPI 服务 + Docker Compose，附带可直接使用的 Web 聊天界面。
+
+> 大模型技术点、代码位置与切换真实模型的方法，详见 [docs/大模型技术应用说明.md](docs/大模型技术应用说明.md)。
 
 ## 效果演示
 
@@ -43,21 +45,42 @@ python main.py serve                 # 启动服务
 curl -X POST http://127.0.0.1:8000/ask -H "Content-Type: application/json" -d "{\"question\":\"一线城市住宿费上限是多少？\"}"
 ```
 
-## 切换到真实模型
+## 切换到真实大模型
+
+默认 `hash + mock` 只是为了让链路在无 Key 环境可跑；**所有真实大模型能力都已实现**，改环境变量即可启用，业务代码零改动。
+
+**方案 A：本地私有化（Ollama，无需 API Key）**
 
 ```bash
-# 本地句向量 + 本地大模型（需先 docker 起 ollama 并拉模型）
 pip install -r requirements-optional.txt
+ollama pull qwen2.5:3b
 set EMBED_MODEL=sentence-transformers
 set LLM_MODE=ollama
+set OLLAMA_MODEL=qwen2.5:3b
 python main.py init --reset
-
-# 或 OpenAI 兼容接口
-set LLM_MODE=openai
-set OPENAI_API_KEY=你的key
+python main.py serve
 ```
 
-Linux/macOS 下把 `set` 换成 `export`。
+**方案 B：国产模型 API（以 DeepSeek 为例，通义/智谱/Moonshot 同理）**
+
+```bash
+set LLM_MODE=openai
+set OPENAI_BASE_URL=https://api.deepseek.com/v1
+set API_KEY_ENV=DEEPSEEK_API_KEY
+set LLM_MODEL=deepseek-chat
+set DEEPSEEK_API_KEY=你的key
+python main.py serve
+```
+
+**方案 C：OpenAI**
+
+```bash
+set LLM_MODE=openai
+set OPENAI_API_KEY=你的key
+python main.py serve
+```
+
+切到真实模型后，Web 界面的回答会自动变成大模型生成的结果，截图即可重截。Linux/macOS 把 `set` 换成 `export`。完整说明见 [docs/大模型技术应用说明.md](docs/大模型技术应用说明.md)。
 
 ## 评估集与指标
 
@@ -66,16 +89,30 @@ Linux/macOS 下把 `set` 换成 `export`。
 
 指标是工程可用的简化实现，不是 RAGAS 完整版；定义、局限与调参方法见 `docs/评估方法说明.md`。
 
+## API 接口
+
+服务启动后访问 `/docs` 查看完整 Swagger 文档。核心接口：
+
+| 接口 | 方法 | 说明 |
+|---|---|---|
+| `/ask` | POST | 标准问答，支持 `history=true` 启用多轮对话 |
+| `/ask/stream` | POST | 流式问答，逐块返回大模型输出 |
+| `/structured` | POST | 结构化输出，返回可解析的 JSON |
+| `/conversation/reset` | POST | 清空多轮对话历史 |
+| `/ingest` | POST | 文档入库建索引 |
+| `/evaluate` | POST | 跑评估集并返回指标 |
+| `/health` | GET | 健康检查与当前模型配置 |
+
 ## 目录结构
 
 ```text
 ingest/       文档解析、清洗、分块、入库
 retrieval/    Embedding、BM25、混合召回、重排序
-generation/   Prompt、LLM 适配、带引用生成、拒答
+generation/   Prompt、LLM 适配、流式/结构化输出、上下文工程、多轮对话、拒答
 evaluation/   评估集、指标、批量评估
 api/          FastAPI 服务与 Web 聊天界面（api/static）
 deploy/       Dockerfile 与 docker-compose
-docs/         架构、评估、面试问答、效果截图
+docs/         架构、大模型技术、评估、面试问答、效果截图
 data/         示例文档与索引
 tests/        核心逻辑单测
 ```
