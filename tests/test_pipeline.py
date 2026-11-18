@@ -91,5 +91,46 @@ class TestContextEngineering(unittest.TestCase):
         self.assertEqual(msgs[-1]["content"], "回答4")
 
 
+class TestConfig(unittest.TestCase):
+    def test_resolve_api_key_prefers_named_env(self):
+        import os
+        from config import Settings
+
+        os.environ["API_KEY_ENV"] = "MY_TEST_KEY"
+        os.environ["MY_TEST_KEY"] = "sk-named"
+        os.environ["DEEPSEEK_API_KEY"] = "sk-fallback"
+        try:
+            s = Settings.from_env()
+            self.assertEqual(s.resolve_api_key(), "sk-named")
+        finally:
+            for k in ("API_KEY_ENV", "MY_TEST_KEY", "DEEPSEEK_API_KEY"):
+                os.environ.pop(k, None)
+
+    def test_resolve_api_key_falls_back_to_known_names(self):
+        import os
+        from config import Settings
+
+        s = Settings()
+        s.api_key_env = "NOT_EXIST_KEY_XYZ"
+        os.environ["ZHIPU_API_KEY"] = "sk-zhipu"
+        try:
+            self.assertEqual(s.resolve_api_key(), "sk-zhipu")
+        finally:
+            os.environ.pop("ZHIPU_API_KEY", None)
+
+    def test_build_llm_raises_when_key_missing(self):
+        import os
+        from config import Settings
+        from generation.llm import build_llm
+
+        for name in ("OPENAI_API_KEY", "DEEPSEEK_API_KEY", "DASHSCOPE_API_KEY",
+                     "MOONSHOT_API_KEY", "ZHIPU_API_KEY", "ARK_API_KEY", "SILICONFLOW_API_KEY"):
+            os.environ.pop(name, None)
+        cfg = Settings()
+        cfg.llm_mode = "openai"
+        with self.assertRaises(RuntimeError):
+            build_llm(cfg)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -43,17 +43,56 @@ def cmd_serve(args: argparse.Namespace) -> None:
     uvicorn.run("api.server:app", host=args.host, port=args.port, reload=args.reload)
 
 
+def cmd_check(args: argparse.Namespace) -> None:
+    """自检：确认当前用的是什么模型、Key 有没有读到、接口通不通。"""
+    print(f"LLM_MODE        : {settings.llm_mode}")
+    print(f"LLM_MODEL       : {settings.llm_model}")
+    print(f"OPENAI_BASE_URL : {settings.openai_base_url}")
+    print(f"EMBED_MODEL     : {settings.embed_model}")
+
+    if settings.llm_mode == "mock":
+        print("\n当前是离线 mock 模式：不调用任何大模型，回答由规则抽取拼接而成。")
+        print("接真实模型：复制 .env.example 为 .env，填好 Key，把 LLM_MODE 改成 openai，再跑一次 check。")
+        return
+
+    try:
+        import openai  # noqa: F401
+    except ImportError:
+        print("\n缺少 openai SDK，请先执行：")
+        print("  pip install openai")
+        return
+
+    key = settings.resolve_api_key()
+    print(f"API Key         : {'已读取（' + key[:6] + '…）' if key else '未找到'}")
+    if not key:
+        print("\n没有读到 Key。在项目根目录建一个 .env，写一行比如 DEEPSEEK_API_KEY=sk-xxx。")
+        return
+
+    from generation.llm import build_llm
+
+    print("\n正在发起一次真实请求…")
+    try:
+        llm = build_llm(settings)
+        reply = llm.chat([{"role": "user", "content": "只回复两个字：收到"}])
+        print(f"连接成功，模型返回：{reply.strip()[:80]}")
+    except Exception as exc:  # noqa: BLE001
+        print(f"连接失败：{type(exc).__name__}: {exc}")
+        print("常见原因：Key 无效、余额不足、base_url 写错、网络需要代理。")
+
+
 QUICK_START = """\
 企业知识库 RAG 问答系统
 
-需要指定一个子命令，常用四条：
+需要指定一个子命令，常用五条：
 
   python main.py init --reset        读取 data/sample_docs 并建立向量索引
   python main.py ask "问题内容"       命令行提问
   python main.py eval                跑评估集，输出 6 项指标
   python main.py serve               启动 Web 服务，浏览器打开 http://127.0.0.1:8000/
+  python main.py check               检查模型配置、Key 与接口连通性
 
 首次使用请先执行 init，否则 ask 和 serve 没有可检索的数据。
+接真实大模型：复制 .env.example 为 .env，填入 Key，把 LLM_MODE 改为 openai。
 （在 PyCharm 里直接点 Run 不会带参数，请在下方 Terminal 中执行上述命令，
  或在 Run/Debug Configurations 的 Script parameters 中填写子命令。）
 """
@@ -86,6 +125,9 @@ def build_parser() -> argparse.ArgumentParser:
     p_serve.add_argument("--port", type=int, default=8000)
     p_serve.add_argument("--reload", action="store_true")
     p_serve.set_defaults(func=cmd_serve)
+
+    p_check = sub.add_parser("check", help="检查模型配置与连通性")
+    p_check.set_defaults(func=cmd_check)
     return parser
 
 

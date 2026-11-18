@@ -180,9 +180,15 @@ def build_llm(cfg: Settings):
     if cfg.llm_mode == "mock":
         return MockLLM(cfg.temperature)
     if cfg.llm_mode == "openai":
-        return OpenAICompatibleLLM(
-            cfg, cfg.openai_base_url, cfg.llm_model, os.getenv(cfg.api_key_env, "")
-        )
+        key = cfg.resolve_api_key()
+        if not key:
+            raise RuntimeError(
+                "未找到 API Key。请在项目根目录的 .env 里写一行，例如：\n"
+                "  DEEPSEEK_API_KEY=sk-xxxx\n"
+                "或设置环境变量 LLM_MODE / OPENAI_BASE_URL / LLM_MODEL。\n"
+                "参考 .env.example。"
+            )
+        return OpenAICompatibleLLM(cfg, cfg.openai_base_url, cfg.llm_model, key)
     if cfg.llm_mode == "ollama":
         return OpenAICompatibleLLM(
             cfg, f"{cfg.ollama_base_url}/v1", cfg.ollama_model, "ollama"

@@ -37,7 +37,10 @@ python main.py init --reset          # 建索引（示例文档）
 python main.py ask "连续远程办公超过几天需要申请？"
 python main.py eval                  # 跑评估集
 python main.py serve                 # 启动服务
+python main.py check                 # 检查模型配置与 API 连通性
 ```
+
+> 想看到自然语言回答，先按下面「接入真实大模型」三步填好 `.env`；不填也能跑，但回答是规则抽取拼接的。
 
 服务启动后，浏览器打开 `http://127.0.0.1:8000/` 使用 Web 问答界面；`http://127.0.0.1:8000/docs` 查看 API 文档。也可以用 curl 直接调接口：
 
@@ -49,42 +52,52 @@ curl -X POST http://127.0.0.1:8000/ask -H "Content-Type: application/json" -d "{
 >
 > 另外，`data/chroma_index/` 已被 `.gitignore` 排除，从 GitHub 下载的代码**没有索引**，首次必须先执行一次 `python main.py init --reset`。
 
-## 切换到真实大模型
+## 接入真实大模型（三步）
 
-默认 `hash + mock` 只是为了让链路在无 Key 环境可跑；**所有真实大模型能力都已实现**，改环境变量即可启用，业务代码零改动。
+默认 `hash + mock` 只是为了让链路在无 Key 环境可跑，回答是规则抽取拼接的，读起来确实生硬。接真实模型只要三步，业务代码一行不用改。
 
-**方案 A：本地私有化（Ollama，无需 API Key）**
-
-```bash
-pip install -r requirements-optional.txt
-ollama pull qwen2.5:3b
-set EMBED_MODEL=sentence-transformers
-set LLM_MODE=ollama
-set OLLAMA_MODEL=qwen2.5:3b
-python main.py init --reset
-python main.py serve
-```
-
-**方案 B：国产模型 API（以 DeepSeek 为例，通义/智谱/Moonshot 同理）**
+**第一步：装 SDK（只装一次）**
 
 ```bash
-set LLM_MODE=openai
-set OPENAI_BASE_URL=https://api.deepseek.com/v1
-set API_KEY_ENV=DEEPSEEK_API_KEY
-set LLM_MODEL=deepseek-chat
-set DEEPSEEK_API_KEY=你的key
-python main.py serve
+pip install openai
 ```
 
-**方案 C：OpenAI**
+**第二步：复制配置模板，填 Key**
+
+把 `.env.example` 复制为 `.env`（同一目录），里面已经写好五个方案的模板，取消注释你要用的那个即可。以 DeepSeek 为例：
+
+```ini
+LLM_MODE=openai
+OPENAI_BASE_URL=https://api.deepseek.com/v1
+LLM_MODEL=deepseek-chat
+DEEPSEEK_API_KEY=sk-你的key
+```
+
+`.env` 已在 `.gitignore` 里，不会被提交。也可以不建 `.env`，直接设环境变量，两者等价。
+
+**第三步：自检，确认真的通了**
 
 ```bash
-set LLM_MODE=openai
-set OPENAI_API_KEY=你的key
-python main.py serve
+python main.py check
 ```
 
-切到真实模型后，Web 界面的回答会自动变成大模型生成的结果，截图即可重截。Linux/macOS 把 `set` 换成 `export`。完整说明见 [docs/大模型技术应用说明.md](docs/大模型技术应用说明.md)。
+它会打印当前模式和 Key 读取情况，并发一次真实请求。看到「连接成功，模型返回：…」就说明通了；失败会直接告诉你原因（Key 无效 / 余额不足 / base_url 写错 / 需要代理）。
+
+通了之后直接 `python main.py serve`，Web 界面里的回答就变成大模型生成的自然语言，带引用、能拒答。
+
+**内置的五个方案**（`\.env.example` 里都有现成模板）：
+
+| 方案 | 需要什么 | 适用 |
+|---|---|---|
+| DeepSeek | `DEEPSEEK_API_KEY` | 国内直连、便宜，推荐首选 |
+| 通义千问 | `DASHSCOPE_API_KEY` | 走 DashScope 兼容模式 |
+| 智谱 GLM | `ZHIPU_API_KEY` | `glm-4-flash` 有免费额度 |
+| Moonshot Kimi | `MOONSHOT_API_KEY` | 长上下文 |
+| 本地 Ollama | 本机跑 `ollama pull qwen2.5:3b` | 完全离线、无需 Key |
+
+Key 的变量名不用记：程序会按 `DEEPSEEK_API_KEY`、`DASHSCOPE_API_KEY`、`ZHIPU_API_KEY`、`MOONSHOT_API_KEY`、`OPENAI_API_KEY` 的顺序自动探测。
+
+> 官方 SDK 装不上时（公司网络/镜像限制），把 `OPENAI_BASE_URL` 指向任意 OpenAI 兼容网关也能用，适配器本身不依赖特定厂商。完整说明见 [docs/大模型技术应用说明.md](docs/大模型技术应用说明.md)。
 
 ## 评估集与指标
 

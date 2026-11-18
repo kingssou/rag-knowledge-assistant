@@ -7,6 +7,35 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 
+# 常见模型服务的 Key 变量名，按顺序自动探测
+_KEY_CANDIDATES = (
+    "OPENAI_API_KEY",
+    "DEEPSEEK_API_KEY",
+    "DASHSCOPE_API_KEY",
+    "MOONSHOT_API_KEY",
+    "ZHIPU_API_KEY",
+    "ARK_API_KEY",
+    "SILICONFLOW_API_KEY",
+)
+
+
+def load_dotenv(path: Path = ROOT / ".env") -> None:
+    """极简 .env 加载，不引入额外依赖；已存在的环境变量优先，不会被覆盖。"""
+    if not path.exists():
+        return
+    for raw in path.read_text(encoding="utf-8").splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        key = key.strip()
+        value = value.strip().strip('"').strip("'")
+        if key and key not in os.environ:
+            os.environ[key] = value
+
+
+load_dotenv()
+
 
 @dataclass
 class Settings:
@@ -64,6 +93,17 @@ class Settings:
         s.data_dir.mkdir(parents=True, exist_ok=True)
         s.index_dir.mkdir(parents=True, exist_ok=True)
         return s
+
+    def resolve_api_key(self) -> str:
+        """按「api_key_env 指定名 → 常见 Key 变量名」的顺序找 Key。"""
+        value = os.getenv(self.api_key_env, "").strip()
+        if value:
+            return value
+        for name in _KEY_CANDIDATES:
+            candidate = os.getenv(name, "").strip()
+            if candidate:
+                return candidate
+        return ""
 
 
 settings = Settings.from_env()
