@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from typing import Iterable, Protocol
 
 from config import Settings
@@ -56,7 +57,8 @@ class MockLLM:
 
         candidates = []
         for idx, text in blocks:
-            sentences = [s.strip() for s in text.replace("\n", " ").split("。") if s.strip()]
+            body = _drop_heading_lines(text)
+            sentences = [s.strip() for s in body.split("。") if s.strip()]
             for sentence in sentences:
                 stokens = set(tokenize(sentence))
                 overlap = len(qtokens & stokens) / len(qtokens) if qtokens else 0
@@ -67,14 +69,13 @@ class MockLLM:
         if not candidates:
             return "根据现有资料无法回答该问题。"
 
-        seen: set[str] = set()
-        lines = []
-        for overlap, idx, sentence in candidates[:3]:
-            key = sentence[:20]
-            if key in seen:
-                continue
-            seen.add(key)
-            lines.append(f"{sentence}。[{idx}]")
+        # 只取与最佳片段同一块、且相关度接近最佳的句子，避免拼进无关内容
+        best_overlap, best_idx = candidates[0][0], candidates[0][1]
+        picked = [
+            c for c in candidates
+            if c[1] == best_idx and c[0] >= best_overlap * 0.7
+        ][:3]
+        lines = [f"{sentence}。[{idx}]" for _, idx, sentence in picked]
         return "\n".join(lines)
 
     def stream(self, messages: list[dict[str, str]]) -> Iterable[str]:
@@ -154,6 +155,27 @@ def _safe_json(raw: str) -> dict:
         return value if isinstance(value, dict) else {}
     except json.JSONDecodeError:
         return {}
+
+
+_SECTION_HEAD = re.compile(r"^\s*(?:[一二三四五六七八九十]+、|#+\s*|\d+[\.、]\s*)")
+
+
+def _drop_heading_lines(text: str) -> str:
+    """丢掉标题行（「三、差旅报销标准」「文档名（示例）」），只保留正文句子。"""
+    kept: list[str] = []
+    for raw in text.split("\n"):
+        line = raw.strip()
+        if not line:
+            continue
+        if _SECTION_HEAD.match(line):
+            line = _SECTION_HEAD.sub("", line).strip()
+            if not line:
+                continue
+        # 没有句末标点且不长 → 视为标题，丢弃
+        if "。" not in line and len(line) <= 40:
+            continue
+        kept.append(line)
+    return "\n".join(kept)
 
 
 def _split_context_question(user: str) -> tuple[str, str]:
