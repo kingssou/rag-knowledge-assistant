@@ -43,9 +43,29 @@ def cmd_serve(args: argparse.Namespace) -> None:
     uvicorn.run("api.server:app", host=args.host, port=args.port, reload=args.reload)
 
 
+QUICK_START = """\
+企业知识库 RAG 问答系统
+
+需要指定一个子命令，常用四条：
+
+  python main.py init --reset        读取 data/sample_docs 并建立向量索引
+  python main.py ask "问题内容"       命令行提问
+  python main.py eval                跑评估集，输出 6 项指标
+  python main.py serve               启动 Web 服务，浏览器打开 http://127.0.0.1:8000/
+
+首次使用请先执行 init，否则 ask 和 serve 没有可检索的数据。
+（在 PyCharm 里直接点 Run 不会带参数，请在下方 Terminal 中执行上述命令，
+ 或在 Run/Debug Configurations 的 Script parameters 中填写子命令。）
+"""
+
+
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="企业知识库 RAG 问答系统")
-    sub = parser.add_subparsers(dest="command", required=True)
+    parser = argparse.ArgumentParser(
+        description="企业知识库 RAG 问答系统",
+        epilog=QUICK_START,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    sub = parser.add_subparsers(dest="command")
 
     p_init = sub.add_parser("init", help="解析文档并建立向量索引")
     p_init.add_argument("--source", help="文件或目录，默认使用示例文档")
@@ -71,6 +91,9 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main() -> None:
     args = build_parser().parse_args()
+    if not getattr(args, "command", None):
+        print(QUICK_START)
+        return
     args.func(args)
 
 

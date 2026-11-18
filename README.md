@@ -45,6 +45,10 @@ python main.py serve                 # 启动服务
 curl -X POST http://127.0.0.1:8000/ask -H "Content-Type: application/json" -d "{\"question\":\"一线城市住宿费上限是多少？\"}"
 ```
 
+> **在 PyCharm / VS Code 中运行时注意**：`main.py` 是命令行入口，必须带子命令。直接点 IDE 的 Run 按钮等于执行 `python main.py`，会提示缺少 command。请在 IDE 内置 Terminal 里执行上面的命令，或在 Run/Debug Configurations 的 Script parameters 里填写 `serve`（或 `init --reset`）。
+>
+> 另外，`data/chroma_index/` 已被 `.gitignore` 排除，从 GitHub 下载的代码**没有索引**，首次必须先执行一次 `python main.py init --reset`。
+
 ## 切换到真实大模型
 
 默认 `hash + mock` 只是为了让链路在无 Key 环境可跑；**所有真实大模型能力都已实现**，改环境变量即可启用，业务代码零改动。
